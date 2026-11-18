@@ -1,0 +1,41 @@
+# Deploys the C# API to Azure App Service whenever API code changes on main.
+# It runs the tests first: if any test fails, nothing is deployed.
+#
+# Needs one GitHub secret: AZURE_API_PUBLISH_PROFILE
+# (Azure Portal → App Service → Overview → Download publish profile)
+name: Deploy API
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "tests/**"
+      - ".github/workflows/deploy-api.yml"
+  workflow_dispatch: # also allows a manual "Run workflow" button in the Actions tab
+
+env:
+  AZURE_WEBAPP_NAME: assetflow-api-akmal
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Test
+        run: dotnet test --configuration Release
+
+      - name: Publish
+        run: dotnet publish src/AssetFlow.Api --configuration Release --output ./publish
+
+      - name: Deploy to Azure App Service
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          publish-profile: ${{ secrets.AZURE_API_PUBLISH_PROFILE }}
+          package: ./publish
