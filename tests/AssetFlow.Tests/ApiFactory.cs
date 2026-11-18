@@ -19,7 +19,10 @@ namespace AssetFlow.Tests;
 /// </summary>
 public class ApiFactory : WebApplicationFactory<Program>
 {
-    public FakeTimeProvider Clock { get; } = new(new DateTimeOffset(2026, 11, 17, 9, 0, 0, TimeSpan.Zero));
+    // The fake clock starts at the real current time. (It must not be a fixed date: the JWT
+    // library checks token expiry against the real clock, so tokens from a fixed past date
+    // would all look expired once that date has passed.)
+    public FakeTimeProvider Clock { get; } = new(DateTimeOffset.UtcNow);
 
     private readonly string _dbPath = Path.Combine(Path.GetTempPath(), $"assetflow-test-{Guid.NewGuid():N}.db");
 
