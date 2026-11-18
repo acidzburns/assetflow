@@ -4,7 +4,11 @@ An **IT asset and equipment loan system**, the kind of internal tool companies u
 
 Staff request equipment, admins approve and hand it out, and the system tracks returns, repairs and overdue loans.
 
-![API documentation](docs/api-docs.png)
+![Admin dashboard](docs/dashboard.png)
+
+| Browse and search assets | Request a loan |
+|---|---|
+| ![Assets](docs/assets.png) | ![Asset detail](docs/asset-detail.png) |
 
 ## Features
 
@@ -19,23 +23,25 @@ Staff request equipment, admins approve and hand it out, and the system tracks r
 - **Overdue tracking** and an admin **summary report** (assets by status, pending and overdue loans, most borrowed, repair costs)
 - **Authentication** with JWT and two roles: `Staff` and `Admin`
 - **Interactive API docs** (OpenAPI + Scalar) at `/scalar`
+- **React frontend**: staff browse and request equipment; admins get a dashboard plus approve, check-out and return actions
 
 ## Tech stack
 
 | Area | Technology |
 |---|---|
+| Frontend | **React 19 + TypeScript**, Vite, Tailwind CSS, React Router, TanStack Query |
 | API | **C# / ASP.NET Core 10** Web API (controllers) |
 | Database | **PostgreSQL** with **Entity Framework Core** (code-first migrations) + raw SQL for reports |
 | Auth | JWT bearer tokens, role-based authorisation, hashed passwords |
 | Docs | OpenAPI 3.1 + Scalar UI |
-| Tests | **xUnit**: domain unit tests + API integration tests (`WebApplicationFactory`, SQLite, fake clock) |
-| CI | **GitHub Actions**: build and test on every push |
+| Tests | **xUnit** for the API (domain + integration tests); **Vitest + Testing Library** for the frontend |
+| CI | **GitHub Actions**: builds and tests the API and the frontend on every push |
 
 ## Architecture
 
 ```
-Controllers  →  Services (interfaces)  →  Domain model  →  EF Core  →  PostgreSQL
- HTTP / JSON     application logic        business rules     data access
+React app  →  Controllers  →  Services (interfaces)  →  Domain model  →  EF Core  →  PostgreSQL
+ (web/)        HTTP / JSON    application logic        business rules     data access
 ```
 
 - **Domain** (`Domain/`): `Asset`, `Loan`, `User` and `MaintenanceRecord` are classes that protect their own rules. Properties have private setters; status only changes through methods like `loan.Approve()` or `asset.SendToRepair()`, which refuse invalid steps.
@@ -67,7 +73,17 @@ dotnet user-secrets set "ConnectionStrings:Default" "Host=localhost;Port=5432;Da
 dotnet run
 ```
 
-The database and demo data are created automatically on first run. Open **http://localhost:5080/scalar**.
+The database and demo data are created automatically on first run. The API docs are at **http://localhost:5080/scalar**.
+
+Then, in a second terminal, start the frontend:
+
+```bash
+cd web
+npm install
+npm run dev
+```
+
+Open **http://localhost:5173** and click **Log in as Admin** or **Log in as Staff**.
 
 **Demo accounts**
 
@@ -76,20 +92,21 @@ The database and demo data are created automatically on first run. Open **http:/
 | Admin | admin@assetflow.dev | Admin@12345 |
 | Staff | staff@assetflow.dev | Staff@12345 |
 
-In Scalar: call `POST /api/auth/login`, copy the `token`, and paste it into **Authentication → Bearer Token**.
+To use the API directly in Scalar: call `POST /api/auth/login`, copy the `token`, and paste it into **Authentication → Bearer Token**.
 
 ## Tests
 
 ```bash
-dotnet test
+dotnet test               # API: 27 tests
+cd web && npm test        # frontend: 18 tests
 ```
 
-27 tests: business rules (loan lifecycle, 30-day limit, repairs, overdue) and full HTTP flows (login, permissions, double booking, overdue report). The API tests run against SQLite with a fake clock, so no database server is needed.
+API tests cover business rules (loan lifecycle, 30-day limit, repairs, overdue) and full HTTP flows (login, permissions, double booking, overdue report). They run against SQLite with a fake clock, so no database server is needed. Frontend tests cover which loan actions each role sees, login errors, and API error messages.
 
 ## Roadmap
 
 - [x] REST API, PostgreSQL, JWT roles, tests, CI
-- [ ] React + TypeScript frontend
+- [x] React + TypeScript frontend
 - [ ] Deploy to **Azure** (App Service + Azure Database for PostgreSQL)
 - [ ] AI assistant: answer questions about loan policies with **RAG**
 - [ ] Mobile app to check items in and out by scanning a QR code

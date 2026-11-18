@@ -1,5 +1,6 @@
-# Runs on every push and pull request: restore → build → test.
-# Tests use SQLite, so no database server is needed here.
+# Runs on every push and pull request.
+#   api: restore → build → test the C# API (tests use SQLite, no database server needed)
+#   web: install → lint → test → build the React frontend
 name: CI
 
 on:
@@ -8,15 +9,30 @@ on:
   pull_request:
 
 jobs:
-  build-and-test:
+  api:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 10.0.x
-
       - run: dotnet restore
       - run: dotnet build --no-restore --configuration Release
       - run: dotnet test --no-build --configuration Release --verbosity normal
+
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
