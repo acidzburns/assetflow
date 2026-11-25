@@ -89,8 +89,23 @@ app.UseAuthorization();
 
 app.MapOpenApi();
 app.MapScalarApiReference(o => o.WithTitle("AssetFlow API").AddPreferredSecuritySchemes("Bearer"));
-app.MapGet("/", () => Results.Redirect("/scalar")).ExcludeFromDescription();
 app.MapControllers();
+
+// ── React frontend ───────────────────────────────────────────────────────
+// When deployed, the built React app sits in wwwroot and is served from the same address as
+// the API, so the browser needs no CORS. Locally there is no wwwroot, so "/" opens the API docs.
+var hasFrontend = File.Exists(Path.Combine(app.Environment.WebRootPath ?? "", "index.html"));
+if (hasFrontend)
+{
+    app.UseDefaultFiles();
+    app.UseStaticFiles();
+    app.MapFallback("/api/{**path}", () => Results.NotFound()); // unknown API routes stay 404
+    app.MapFallbackToFile("index.html");                          // /loans, /assets/3 … load the React app
+}
+else
+{
+    app.MapGet("/", () => Results.Redirect("/scalar")).ExcludeFromDescription();
+}
 
 await DatabaseSetup.InitialiseAsync(app.Services);
 app.Run();

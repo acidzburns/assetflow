@@ -1,9 +1,10 @@
-# Deploys the C# API to Azure App Service whenever API code changes on main.
-# It runs the tests first: if any test fails, nothing is deployed.
+# Deploys AssetFlow (C# API + React frontend) to Azure App Service on every push to main.
+# The React app is built into the API's wwwroot folder, so one App Service serves both.
+# Tests run first: if any test fails, nothing is deployed.
 #
 # Needs one GitHub secret: AZURE_API_PUBLISH_PROFILE
 # (Azure Portal → App Service → Overview → Download publish profile)
-name: Deploy API
+name: Deploy to Azure
 
 on:
   push:
@@ -11,6 +12,7 @@ on:
     paths:
       - "src/**"
       - "tests/**"
+      - "web/**"
       - ".github/workflows/deploy-api.yml"
   workflow_dispatch: # also allows a manual "Run workflow" button in the Actions tab
 
@@ -27,11 +29,27 @@ jobs:
         with:
           dotnet-version: 10.0.x
 
-      - name: Test
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Test API
         run: dotnet test --configuration Release
 
-      - name: Publish
-        run: dotnet publish src/AssetFlow.Api --configuration Release --output ./publish
+      - name: Test and build frontend
+        working-directory: web
+        run: |
+          npm ci
+          npm test
+          npm run build
+
+      - name: Publish API with the frontend inside
+        run: |
+          dotnet publish src/AssetFlow.Api --configuration Release --output ./publish
+          mkdir -p ./publish/wwwroot
+          cp -r web/dist/. ./publish/wwwroot/
 
       - name: Deploy to Azure App Service
         uses: azure/webapps-deploy@v3
